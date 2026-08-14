@@ -1,81 +1,96 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMotionValue, useSpring } from 'framer-motion';
 
 export function useIntroAnimation() {
-  const [showIntro, setShowIntro] = useState(true);
-  const [isRevealed, setIsRevealed] = useState(false);
+  // Default to already revealed so server render and non-intro paths work cleanly
+  const [showIntro, setShowIntro] = useState(false);
+  const [isRevealed, setIsRevealed] = useState(true);
   
-  // progress goes from 0 to 1
-  const progressRaw = useMotionValue(0);
-  const progress = useSpring(progressRaw, { stiffness: 100, damping: 20, restDelta: 0.001 });
+  const progressRaw = useMotionValue(1);
+  const progress = useSpring(progressRaw, { stiffness: 80, damping: 18, restDelta: 0.001 });
+  const touchStartY = useRef(0);
+  const completedRef = useRef(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const seen = sessionStorage.getItem('introSeen');
-      if (seen) {
-        setShowIntro(false);
-        setIsRevealed(true);
-        progressRaw.set(1);
-      } else {
-        // Prevent background scrolling while intro is active
-        document.body.style.overflow = 'hidden';
-      }
+    if (typeof window === 'undefined') return;
+
+    const seen = sessionStorage.getItem('introSeen');
+    if (seen) {
+      // Already seen — keep defaults (revealed, no intro)
+      document.body.style.overflow = '';
+      return;
     }
-  }, [progressRaw]);
 
-  useEffect(() => {
-    if (!showIntro || isRevealed) return;
+    // First visit — show intro
+    setShowIntro(true);
+    setIsRevealed(false);
+    progressRaw.set(0);
+    document.body.style.overflow = 'hidden';
 
-    let touchStartY = 0;
+    const complete = () => {
+      if (completedRef.current) return;
+      completedRef.current = true;
+      sessionStorage.setItem('introSeen', 'true');
+      document.body.style.overflow = '';
+      progressRaw.set(1);
+      // Small delay so the fly-through animation plays, then hard-reveal
+      setTimeout(() => {
+        setIsRevealed(true);
+        setShowIntro(false);
+      }, 800);
+    };
 
     const handleWheel = (e) => {
-      // e.deltaY > 0 means scrolling down (which means swiping up on trackpad)
+      if (completedRef.current) return;
+      // Only intercept downward scroll (scrolling down = intent to enter)
       if (e.deltaY > 0) {
-        const newProg = Math.min(progressRaw.get() + (e.deltaY / 1000), 1);
+        e.preventDefault();
+        const newProg = Math.min(progressRaw.get() + Math.abs(e.deltaY) / 600, 1);
         progressRaw.set(newProg);
-        checkCompletion(newProg);
+        if (newProg >= 1) complete();
       }
     };
 
     const handleTouchStart = (e) => {
-      touchStartY = e.touches[0].clientY;
+      if (completedRef.current) return;
+      touchStartY.current = e.touches[0].clientY;
     };
 
     const handleTouchMove = (e) => {
-      const touchY = e.touches[0].clientY;
-      const delta = touchStartY - touchY;
-      
-      // delta > 0 means swiping up (finger moves up)
+      if (completedRef.current) return;
+      const delta = touchStartY.current - e.touches[0].clientY;
       if (delta > 0) {
-        const newProg = Math.min(progressRaw.get() + (delta / 500), 1);
+        // Only prevent default scroll when actively driving the intro animation
+        e.preventDefault();
+        const newProg = Math.min(progressRaw.get() + delta / 400, 1);
         progressRaw.set(newProg);
-        checkCompletion(newProg);
-        touchStartY = touchY;
+        touchStartY.current = e.touches[0].clientY;
+        if (newProg >= 1) complete();
       }
     };
 
-    const checkCompletion = (val) => {
-      if (val >= 1) {
-        setIsRevealed(true);
-        sessionStorage.setItem('introSeen', 'true');
-        document.body.style.overflow = 'auto';
-        window.scrollTo(0, 0);
-      }
-    };
+    // Safety fallback — if user somehow can't scroll (trackpad etc.), 
+    // auto-complete after 6 seconds so the site is never permanently blocked
+    const safetyTimer = setTimeout(() => {
+      if (!completedRef.current) complete();
+    }, 6500);
 
     window.addEventListener('wheel', handleWheel, { passive: false });
-    window.addEventListener('touchstart', handleTouchStart, { passive: false });
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
     window.addEventListener('touchmove', handleTouchMove, { passive: false });
 
     return () => {
+      clearTimeout(safetyTimer);
       window.removeEventListener('wheel', handleWheel);
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchmove', handleTouchMove);
-      document.body.style.overflow = 'auto';
+      // Always restore scroll on cleanup
+      document.body.style.overflow = '';
     };
-  }, [showIntro, isRevealed, progressRaw]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return { showIntro, isRevealed, progress };
 }
