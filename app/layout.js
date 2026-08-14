@@ -3,8 +3,8 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import TransitionProvider from '@/components/TransitionProvider';
 import ScrollToTop from '@/components/ScrollToTop';
-import InitialLoader from '@/components/InitialLoader';
 import CustomCursor from '@/components/CustomCursor';
+import IntroWrapper from '@/components/IntroWrapper';
 
 export const metadata = {
   title: {
@@ -31,15 +31,16 @@ export default function RootLayout({ children }) {
     <html lang="en" className="scroll-smooth">
       <body className="min-h-screen flex flex-col font-body">
         <CustomCursor />
-        <InitialLoader />
-        <Navbar />
-        <TransitionProvider>
-          <main className="flex-1" role="main">
-            {children}
-          </main>
-        </TransitionProvider>
-        <Footer />
-        <ScrollToTop />
+        <IntroWrapper>
+          <Navbar />
+          <TransitionProvider>
+            <main className="flex-1" role="main">
+              {children}
+            </main>
+          </TransitionProvider>
+          <Footer />
+          <ScrollToTop />
+        </IntroWrapper>
       </body>
     </html>
   );

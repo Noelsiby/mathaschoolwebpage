@@ -191,3 +191,22 @@ h1, h2, h3, h4, h5 {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Intro Screen Gold Particles */
+@keyframes floatUp {
+  0% { 
+    transform: translateY(0) scale(1); 
+    opacity: 0.6; 
+  }
+  100% { 
+    transform: translateY(-100vh) scale(0.5); 
+    opacity: 0; 
+  }
+}
+
+.particle {
+  position: absolute;
+  background: var(--secondary);
+  border-radius: 50%;
+  animation: floatUp linear infinite;
+}
