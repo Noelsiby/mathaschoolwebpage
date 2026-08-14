@@ -7,14 +7,14 @@ import { motion, useTransform } from 'framer-motion';
 export default function IntroWrapper({ children }) {
   const { showIntro, isRevealed, progress } = useIntroAnimation();
   
-  // Fly-through effect on main content
-  const opacity = useTransform(progress, [0.6, 1], [0, 1]);
-  const scale = useTransform(progress, [0, 1], [0.9, 1]);
+  // Fly-through — reveal fades and scales at different points for drama
+  const opacity = useTransform(progress, [0.55, 1], [0, 1]);
+  const scale   = useTransform(progress, [0, 0.6, 1], [0.85, 0.95, 1]);
 
   return (
     <>
       {showIntro && <IntroScreen progress={progress} />}
-      <motion.div 
+      <motion.div
         style={!isRevealed ? { opacity, scale } : {}}
         className="flex flex-col min-h-screen relative z-0"
       >
