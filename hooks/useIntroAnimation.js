@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useMotionValue, useSpring } from 'framer-motion';
 
 export function useIntroAnimation() {
-  // Default to already revealed so server-render and returning visitors get the site instantly
+  // Default to already revealed — server render + returning visitors get site instantly
   const [showIntro, setShowIntro] = useState(false);
   const [isRevealed, setIsRevealed] = useState(true);
 
@@ -18,6 +18,7 @@ export function useIntroAnimation() {
 
     const seen = sessionStorage.getItem('introSeen');
     if (seen) {
+      // Already seen — restore scroll just in case and return
       document.body.style.overflow = '';
       return;
     }
@@ -33,7 +34,8 @@ export function useIntroAnimation() {
       completedRef.current = true;
       sessionStorage.setItem('introSeen', 'true');
       document.body.style.overflow = '';
-      // Animate progress to 1 (triggers fly-through), then hard-reveal after animation
+
+      // Animate fly-through (progress → 1), then hard-reveal after animation plays
       progressRaw.set(1);
       setTimeout(() => {
         setIsRevealed(true);
@@ -44,7 +46,6 @@ export function useIntroAnimation() {
 
     const handleWheel = (e) => {
       if (completedRef.current) return;
-      // Any downward scroll → instantly trigger completion
       if (e.deltaY > 0) {
         e.preventDefault();
         complete();
@@ -59,29 +60,35 @@ export function useIntroAnimation() {
     const handleTouchMove = (e) => {
       if (completedRef.current) return;
       const delta = touchStartY.current - e.touches[0].clientY;
-      // Any upward swipe of 10px+ → instantly trigger completion
-      if (delta > 10) {
+      // Upward swipe of 15px+ triggers entry
+      if (delta > 15) {
         e.preventDefault();
         complete();
       }
     };
 
-    // Also allow a tap/click on the screen to enter (mobile friendly)
-    const handleClick = () => {
+    // Tap anywhere on the INTRO SCREEN only (not on links/buttons) to enter
+    // We use a named handler so we can remove it cleanly
+    const handleIntroTap = (e) => {
       if (completedRef.current) return;
-      complete();
+      // Only trigger if the tap target is the intro overlay itself,
+      // not a child button/link — this prevents interfering with nav
+      const introEl = document.getElementById('intro-screen-overlay');
+      if (introEl && introEl.contains(e.target)) {
+        complete();
+      }
     };
 
     window.addEventListener('wheel', handleWheel, { passive: false });
     window.addEventListener('touchstart', handleTouchStart, { passive: true });
     window.addEventListener('touchmove', handleTouchMove, { passive: false });
-    window.addEventListener('click', handleClick);
+    window.addEventListener('click', handleIntroTap);
 
     return () => {
       window.removeEventListener('wheel', handleWheel);
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('click', handleClick);
+      window.removeEventListener('click', handleIntroTap);
       document.body.style.overflow = '';
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps

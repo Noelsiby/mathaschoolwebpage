@@ -131,6 +131,7 @@ export default function IntroScreen({ progress }) {
 
   return (
     <motion.div
+      id="intro-screen-overlay"
       ref={containerRef}
       style={{ opacity: bgOpacity }}
       className="fixed inset-0 z-[9999] overflow-hidden flex items-center justify-center"
